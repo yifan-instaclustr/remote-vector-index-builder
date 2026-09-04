@@ -40,6 +40,14 @@ class IndexBuilder:
         index_serialization_mode = os.environ.get(
             "INDEX_SERIALIZATION_MODE", IndexSerializationMode.DISK
         )
+        disable_extra_args = os.environ.get(
+            "S3_DISABLE_EXTRA_ARGS", ""
+        ).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         result = run_tasks(
             workflow.index_build_parameters,
             {
@@ -47,6 +55,7 @@ class IndexBuilder:
                     region_name=os.environ.get("AWS_DEFAULT_REGION", None),
                     endpoint_url=s3_endpoint_url,
                 ),
+                "disable_extra_args": disable_extra_args,
             },
             index_serialization_mode,
         )

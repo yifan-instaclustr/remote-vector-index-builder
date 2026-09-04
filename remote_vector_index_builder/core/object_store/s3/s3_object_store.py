@@ -11,7 +11,7 @@ import os
 import sys
 import threading
 from functools import cache
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 from io import BytesIO
 
 import boto3
@@ -104,6 +104,10 @@ class S3ObjectStore(ObjectStore):
             Contains:
                 - transfer_config (Dict[str, Any]): s3 TransferConfig parameters
                 - debug: Turns on debug mode (default: False)
+                - disable_extra_args (bool) (default: False): When True, skip default
+                    upload ExtraArgs (ChecksumAlgorithm) and KMS ExtraArgs. Use for
+                    S3-compatible stores such as GCS interop that reject upload ExtraArgs.
+                    Download ExtraArgs are unchanged.
                 - s3_client_config (S3ClientConfig) (Required):
                     Required:
                         - region_name (str) (required): AWS Region name
@@ -173,11 +177,17 @@ class S3ObjectStore(ObjectStore):
             upload_transfer_config, self.DEFAULT_UPLOAD_TRANSFER_CONFIG
         )
         upload_args = object_store_config.get("upload_args", {})
-        # Create upload args
-        # This is passed as the 'ExtraArgs' parameter to the boto3 upload API call
-        self.upload_args = S3ObjectStore._create_custom_config(
-            upload_args, self.DEFAULT_UPLOAD_ARGS
-        )
+
+        # GCS XML interop rejects boto3 upload ExtraArgs such as ChecksumAlgorithm.
+        self.disable_extra_args = object_store_config.get("disable_extra_args", False)
+        if self.disable_extra_args:
+            self.upload_args = dict(upload_args)
+        else:
+            # Create upload args
+            # This is passed as the 'ExtraArgs' parameter to the boto3 upload API call
+            self.upload_args = S3ObjectStore._create_custom_config(
+                upload_args, self.DEFAULT_UPLOAD_ARGS
+            )
 
         self.debug = object_store_config.get("debug", False)
 
@@ -212,6 +222,14 @@ class S3ObjectStore(ObjectStore):
         config_params.update(custom_config)
 
         return config_params
+
+    def _extra_args_or_none(
+        self, extra_args: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Return ExtraArgs for boto3, or None when ExtraArgs should be omitted."""
+        if self.disable_extra_args and not extra_args:
+            return None
+        return extra_args
 
     def read_blob(self, remote_store_path: str, bytes_buffer) -> None:
         """
@@ -252,7 +270,8 @@ class S3ObjectStore(ObjectStore):
 
         try:
             # Get KMS key for this object and save it to this class instance, to be used for object uploads later
-            self.get_kms_key(remote_store_path)
+            if not self.disable_extra_args:
+                self.get_kms_key(remote_store_path)
 
             # Create transfer config object
             s3_transfer_config = TransferConfig(**self.download_transfer_config)
@@ -340,20 +359,22 @@ class S3ObjectStore(ObjectStore):
     ):
         if isinstance(data, BytesIO):
             data.seek(0)
+            extra_args = self._extra_args_or_none(self.upload_args)
             self.s3_client.upload_fileobj(
                 data,
                 self.bucket,
                 remote_store_path,
                 Config=s3_transfer_config,
                 Callback=callback_func,
-                ExtraArgs=self.upload_args,
+                ExtraArgs=extra_args,
             )
         else:
+            extra_args = self._extra_args_or_none(self.upload_args)
             self.s3_client.upload_file(
                 data,
                 self.bucket,
                 remote_store_path,
                 Config=s3_transfer_config,
                 Callback=callback_func,
-                ExtraArgs=self.upload_args,
+                ExtraArgs=extra_args,
             )

@@ -182,6 +182,45 @@ def test_create_custom_config(index_build_parameters):
         assert "param" in store.upload_args
 
 
+def test_disable_extra_args_skips_default_upload_checksums(
+    index_build_parameters, object_store_config
+):
+    object_store_config["disable_extra_args"] = True
+    with patch("core.object_store.s3.s3_object_store.get_boto3_client"):
+        store = S3ObjectStore(index_build_parameters, object_store_config)
+        assert store.disable_extra_args is True
+        assert store.upload_args == {}
+        assert "ChecksumAlgorithm" not in store.upload_args
+        assert store.download_args["ChecksumMode"] == "ENABLED"
+
+
+def test_write_blob_omits_extra_args_when_disabled(
+    index_build_parameters, object_store_config
+):
+    object_store_config["disable_extra_args"] = True
+    with patch("core.object_store.s3.s3_object_store.get_boto3_client"):
+        store = S3ObjectStore(index_build_parameters, object_store_config)
+        store.s3_client.upload_file = Mock()
+        store.write_blob("local/path", "remote/path")
+        assert store.s3_client.upload_file.call_args.kwargs["ExtraArgs"] is None
+
+
+def test_read_blob_keeps_download_args_and_skips_kms_when_upload_extra_args_disabled(
+    index_build_parameters, object_store_config, bytes_buffer
+):
+    object_store_config["disable_extra_args"] = True
+    with patch("core.object_store.s3.s3_object_store.get_boto3_client"):
+        store = S3ObjectStore(index_build_parameters, object_store_config)
+        store.s3_client.download_fileobj = Mock()
+        store.get_kms_key = Mock()
+        store.read_blob("test/path", bytes_buffer)
+        store.get_kms_key.assert_not_called()
+        assert (
+            store.s3_client.download_fileobj.call_args.kwargs["ExtraArgs"]
+            == store.download_args
+        )
+
+
 def test_read_blob_success(index_build_parameters, object_store_config, bytes_buffer):
     with patch("core.object_store.s3.s3_object_store.get_boto3_client"):
         store = S3ObjectStore(index_build_parameters, object_store_config)

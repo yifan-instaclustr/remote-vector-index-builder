@@ -52,3 +52,20 @@ def test_build_index_failure(index_builder, mock_workflow):
         assert path is None
         assert error == "Build failed"
         mock_run_tasks.assert_called_once()
+
+
+def test_build_index_passes_disable_extra_args_from_env(
+    index_builder, mock_workflow, monkeypatch
+):
+    monkeypatch.setenv("S3_DISABLE_EXTRA_ARGS", "true")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    with patch("app.services.index_builder.run_tasks") as mock_run_tasks:
+        mock_result = Mock()
+        mock_result.file_name = "/path/to/index"
+        mock_result.error = None
+        mock_run_tasks.return_value = mock_result
+
+        index_builder.build_index(mock_workflow)
+
+        object_store_config = mock_run_tasks.call_args.args[1]
+        assert object_store_config["disable_extra_args"] is True
