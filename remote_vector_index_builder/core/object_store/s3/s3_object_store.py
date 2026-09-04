@@ -105,9 +105,9 @@ class S3ObjectStore(ObjectStore):
                 - transfer_config (Dict[str, Any]): s3 TransferConfig parameters
                 - debug: Turns on debug mode (default: False)
                 - disable_extra_args (bool) (default: False): When True, skip default
-                    upload ExtraArgs (ChecksumAlgorithm) and KMS ExtraArgs. Use for
-                    S3-compatible stores such as GCS interop that reject upload ExtraArgs.
-                    Download ExtraArgs are unchanged.
+                    upload ExtraArgs (ChecksumAlgorithm). Use for S3-compatible stores
+                    such as GCS interop that reject that ExtraArg. Download ExtraArgs
+                    and KMS ExtraArgs are unchanged.
                 - s3_client_config (S3ClientConfig) (Required):
                     Required:
                         - region_name (str) (required): AWS Region name
@@ -270,8 +270,7 @@ class S3ObjectStore(ObjectStore):
 
         try:
             # Get KMS key for this object and save it to this class instance, to be used for object uploads later
-            if not self.disable_extra_args:
-                self.get_kms_key(remote_store_path)
+            self.get_kms_key(remote_store_path)
 
             # Create transfer config object
             s3_transfer_config = TransferConfig(**self.download_transfer_config)
