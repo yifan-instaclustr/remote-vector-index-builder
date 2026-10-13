@@ -7,8 +7,9 @@
 
 import logging
 import os
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from app.models.workflow import BuildWorkflow
+from core.object_store.azure.azure_object_store_config import AzureClientConfig
 from core.object_store.s3.s3_object_store_config import S3ClientConfig
 from core.common.models import IndexSerializationMode
 from core.tasks import run_tasks
@@ -48,17 +49,42 @@ class IndexBuilder:
             "yes",
             "on",
         }
+        object_store_config: Dict[str, Any] = {
+            "s3_client_config": S3ClientConfig(
+                region_name=os.environ.get("AWS_DEFAULT_REGION", None),
+                endpoint_url=s3_endpoint_url,
+            ),
+            "disable_extra_args": disable_extra_args,
+        }
+        azure_client_config = self._get_azure_client_config()
+        if azure_client_config is not None:
+            object_store_config["azure_client_config"] = azure_client_config
+
         result = run_tasks(
             workflow.index_build_parameters,
-            {
-                "s3_client_config": S3ClientConfig(
-                    region_name=os.environ.get("AWS_DEFAULT_REGION", None),
-                    endpoint_url=s3_endpoint_url,
-                ),
-                "disable_extra_args": disable_extra_args,
-            },
+            object_store_config,
             index_serialization_mode,
         )
         if not result.file_name:
             return False, None, result.error
         return True, result.file_name, None
+
+    @staticmethod
+    def _get_azure_client_config() -> Optional[AzureClientConfig]:
+        """
+        Builds the Azure Blob Storage client configuration from environment variables.
+
+        Returns:
+            Optional[AzureClientConfig]: The configuration, or None if neither
+                AZURE_STORAGE_CONNECTION_STRING nor AZURE_STORAGE_ACCOUNT_URL is set
+        """
+        connection_string = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+        account_url = os.environ.get("AZURE_STORAGE_ACCOUNT_URL")
+        if not connection_string and not account_url:
+            return None
+        return AzureClientConfig(
+            connection_string=connection_string,
+            account_url=account_url,
+            account_key=os.environ.get("AZURE_STORAGE_ACCOUNT_KEY"),
+            sas_token=os.environ.get("AZURE_STORAGE_SAS_TOKEN"),
+        )

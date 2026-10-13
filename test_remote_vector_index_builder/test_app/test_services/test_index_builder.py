@@ -69,3 +69,39 @@ def test_build_index_passes_disable_extra_args_from_env(
 
         object_store_config = mock_run_tasks.call_args.args[1]
         assert object_store_config["disable_extra_args"] is True
+
+
+def test_build_index_without_azure_env(index_builder, mock_workflow, monkeypatch):
+    """Azure client config is omitted when no Azure endpoint is configured"""
+    monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
+    monkeypatch.delenv("AZURE_STORAGE_ACCOUNT_URL", raising=False)
+    with patch("app.services.index_builder.run_tasks") as mock_run_tasks:
+        mock_run_tasks.return_value = Mock(file_name="/path/to/index", error=None)
+
+        index_builder.build_index(mock_workflow)
+
+        object_store_config = mock_run_tasks.call_args.args[1]
+        assert "s3_client_config" in object_store_config
+        assert "azure_client_config" not in object_store_config
+
+
+def test_build_index_with_azure_env(index_builder, mock_workflow, monkeypatch):
+    """Azure client config is built from environment variables"""
+    monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
+    monkeypatch.setenv(
+        "AZURE_STORAGE_ACCOUNT_URL", "https://testaccount.blob.core.windows.net"
+    )
+    monkeypatch.setenv("AZURE_STORAGE_SAS_TOKEN", "sv=1&sig=abc")
+    monkeypatch.delenv("AZURE_STORAGE_ACCOUNT_KEY", raising=False)
+    with patch("app.services.index_builder.run_tasks") as mock_run_tasks:
+        mock_run_tasks.return_value = Mock(file_name="/path/to/index", error=None)
+
+        index_builder.build_index(mock_workflow)
+
+        azure_client_config = mock_run_tasks.call_args.args[1]["azure_client_config"]
+        assert (
+            azure_client_config.account_url
+            == "https://testaccount.blob.core.windows.net"
+        )
+        assert azure_client_config.sas_token == "sv=1&sig=abc"
+        assert azure_client_config.connection_string is None

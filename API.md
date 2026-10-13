@@ -9,7 +9,7 @@ POST /_build
 
 Request Parameters
 {
-    "repository_type": "s3", // Derived from repository settings
+    "repository_type": "s3", // {s3, azure} Derived from repository settings
     "container_name": "VectorBucketName", // Derived from repository settings
     "vector_path": "VectorBlobPath", // File path all vector blobs are written to
     "doc_id_path" : "DocIdPath", // File path all doc Ids are written to

@@ -4,8 +4,12 @@
 # The OpenSearch Contributors require contributions made to
 # this file be licensed under the Apache-2.0 license or a
 # compatible open source license.
+from unittest.mock import patch
+
 import pytest
 from core.common.exceptions import UnsupportedObjectStoreTypeError
+from core.object_store.azure.azure_object_store import AzureBlobObjectStore
+from core.object_store.azure.azure_object_store_config import AzureClientConfig
 from core.object_store.object_store_factory import ObjectStoreFactory
 from core.object_store.s3.s3_object_store import S3ObjectStore
 from core.object_store.types import ObjectStoreType
@@ -24,6 +28,27 @@ def test_create_s3_object_store(index_build_parameters, object_store_config):
 
     # Assert
     assert isinstance(store, S3ObjectStore)
+
+
+def test_create_azure_object_store(index_build_parameters):
+    """Test creating an Azure Blob Storage object store"""
+    # Setup
+    index_build_parameters.repository_type = ObjectStoreType.AZURE
+    object_store_config = {
+        "azure_client_config": AzureClientConfig(
+            account_url="https://testaccount.blob.core.windows.net"
+        )
+    }
+
+    # Execute
+    with patch("core.object_store.azure.azure_object_store.get_blob_service_client"):
+        store = ObjectStoreFactory.create_object_store(
+            index_build_params=index_build_parameters,
+            object_store_config=object_store_config,
+        )
+
+    # Assert
+    assert isinstance(store, AzureBlobObjectStore)
 
 
 def test_create_object_store_unsupported_type(

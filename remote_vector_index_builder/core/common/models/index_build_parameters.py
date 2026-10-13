@@ -142,7 +142,8 @@ class IndexBuildParameters(BaseModel):
     Attributes:
         repository_type (str): The type of repository where the vector data is stored.
             Defaults to s3
-        container_name (str): Name of the container (e.g., S3 bucket) containing the vector data.
+        container_name (str): Name of the container (e.g., S3 bucket or Azure Blob Storage
+            container) containing the vector data.
         vector_path (VectorPathRegex): Path to the vector data file. Must end with .knnvec extension.
         doc_id_path (str): Path to the document IDs corresponding to the vectors.
         tenant_id (str): Optional identifier for multi-tenant scenarios. Defaults to empty string.

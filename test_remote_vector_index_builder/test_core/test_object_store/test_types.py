@@ -9,3 +9,4 @@ from core.object_store.types import ObjectStoreType
 
 def test_object_store_type_values():
     assert ObjectStoreType.S3 == "s3"
+    assert ObjectStoreType.AZURE == "azure"

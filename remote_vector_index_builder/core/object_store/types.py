@@ -17,6 +17,8 @@ class ObjectStoreType(str, Enum):
 
     Attributes:
         S3 (str): Represents Amazon S3 object storage service
+        AZURE (str): Represents Azure Blob Storage, matching the OpenSearch repository-azure type
     """
 
     S3 = "s3"
+    AZURE = "azure"

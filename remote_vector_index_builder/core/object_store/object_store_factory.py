@@ -9,6 +9,7 @@ from typing import Any, Dict
 
 from core.common.exceptions import UnsupportedObjectStoreTypeError
 from core.common.models import IndexBuildParameters
+from core.object_store.azure.azure_object_store import AzureBlobObjectStore
 from core.object_store.object_store import ObjectStore
 from core.object_store.s3.s3_object_store import S3ObjectStore
 from core.object_store.types import ObjectStoreType
@@ -50,6 +51,8 @@ class ObjectStoreFactory:
         """
         if index_build_params.repository_type == ObjectStoreType.S3:
             return S3ObjectStore(index_build_params, object_store_config)
+        elif index_build_params.repository_type == ObjectStoreType.AZURE:
+            return AzureBlobObjectStore(index_build_params, object_store_config)
         else:
             raise UnsupportedObjectStoreTypeError(
                 f"Unknown object store type: {index_build_params.repository_type}"
