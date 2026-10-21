@@ -140,6 +140,11 @@ def test_s3_object_store_initialization_debug_config(index_build_parameters):
             assert store.debug
 
 
+def test_s3_object_store_requires_client_config(index_build_parameters):
+    with pytest.raises(ValueError, match="s3_client_config is required"):
+        S3ObjectStore(index_build_parameters, {"debug": False})
+
+
 def test_create_custom_config(index_build_parameters):
     custom_config = {
         "debug": False,

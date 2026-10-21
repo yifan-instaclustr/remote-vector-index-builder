@@ -148,7 +148,14 @@ class S3ObjectStore(ObjectStore):
         }
         self.bucket = index_build_params.container_name
 
-        s3_client_config: S3ClientConfig = object_store_config.get("s3_client_config")
+        s3_client_config: Optional[S3ClientConfig] = object_store_config.get(
+            "s3_client_config"
+        )
+        if s3_client_config is None:
+            raise ValueError(
+                "s3_client_config is required for the s3 object store. Set "
+                "AWS_DEFAULT_REGION on the builder."
+            )
         self.max_retries = s3_client_config.max_retries
         self.region = s3_client_config.region_name
 

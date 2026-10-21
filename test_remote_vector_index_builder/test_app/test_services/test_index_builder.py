@@ -73,6 +73,7 @@ def test_build_index_passes_disable_extra_args_from_env(
 
 def test_build_index_without_azure_env(index_builder, mock_workflow, monkeypatch):
     """Azure client config is omitted when no Azure endpoint is configured"""
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
     monkeypatch.delenv("AZURE_STORAGE_ACCOUNT_URL", raising=False)
     with patch("app.services.index_builder.run_tasks") as mock_run_tasks:
@@ -105,3 +106,26 @@ def test_build_index_with_azure_env(index_builder, mock_workflow, monkeypatch):
         )
         assert azure_client_config.sas_token == "sv=1&sig=abc"
         assert azure_client_config.connection_string is None
+
+
+def test_build_index_with_azure_env_and_no_aws_region(
+    index_builder, mock_workflow, monkeypatch
+):
+    """S3 client config is omitted when no AWS region is configured"""
+    monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+    monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
+    monkeypatch.setenv(
+        "AZURE_STORAGE_ACCOUNT_URL", "https://testaccount.blob.core.windows.net"
+    )
+    with patch("app.services.index_builder.run_tasks") as mock_run_tasks:
+        mock_run_tasks.return_value = Mock(file_name="/path/to/index", error=None)
+
+        assert index_builder.build_index(mock_workflow) == (
+            True,
+            "/path/to/index",
+            None,
+        )
+
+        object_store_config = mock_run_tasks.call_args.args[1]
+        assert "s3_client_config" not in object_store_config
+        assert "azure_client_config" in object_store_config

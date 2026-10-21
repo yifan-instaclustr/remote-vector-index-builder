@@ -37,7 +37,6 @@ class IndexBuilder:
                 - Index path if successful, None otherwise
                 - Error message if failed, None otherwise
         """
-        s3_endpoint_url = os.environ.get("S3_ENDPOINT_URL", None)
         index_serialization_mode = os.environ.get(
             "INDEX_SERIALIZATION_MODE", IndexSerializationMode.DISK
         )
@@ -50,12 +49,11 @@ class IndexBuilder:
             "on",
         }
         object_store_config: Dict[str, Any] = {
-            "s3_client_config": S3ClientConfig(
-                region_name=os.environ.get("AWS_DEFAULT_REGION", None),
-                endpoint_url=s3_endpoint_url,
-            ),
             "disable_extra_args": disable_extra_args,
         }
+        s3_client_config = self._get_s3_client_config()
+        if s3_client_config is not None:
+            object_store_config["s3_client_config"] = s3_client_config
         azure_client_config = self._get_azure_client_config()
         if azure_client_config is not None:
             object_store_config["azure_client_config"] = azure_client_config
@@ -68,6 +66,22 @@ class IndexBuilder:
         if not result.file_name:
             return False, None, result.error
         return True, result.file_name, None
+
+    @staticmethod
+    def _get_s3_client_config() -> Optional[S3ClientConfig]:
+        """
+        Builds the S3 client configuration from environment variables.
+
+        Returns:
+            Optional[S3ClientConfig]: The configuration, or None if AWS_DEFAULT_REGION is not set
+        """
+        region_name = os.environ.get("AWS_DEFAULT_REGION")
+        if not region_name:
+            return None
+        return S3ClientConfig(
+            region_name=region_name,
+            endpoint_url=os.environ.get("S3_ENDPOINT_URL", None),
+        )
 
     @staticmethod
     def _get_azure_client_config() -> Optional[AzureClientConfig]:
